@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import random
 from collections import namedtuple, deque
 from typing import Union
-from cvxopt import matrix
+from cvxopt import matrix, solvers
 from cvxopt.solvers import qp
 
 from q_net import SimpleQNet
@@ -115,9 +115,10 @@ class DQN_Agent:
         state_dim: int,
         action_dim: int,
         gamma: float=0.99,
-        lr: float=1e-3,
+        lr: float=5e-4,
         batch_size: int=128,
         exploration_ratio: float=0.5,
+        eval_step: int=32,
         device: str='cpu') -> None:
 
         self.q_net = SimpleQNet(state_dim, action_dim).to(device)
@@ -133,6 +134,7 @@ class DQN_Agent:
         self.action_dim = action_dim
         self.device = device
         self.training_step = 0
+        self.eval_step = eval_step
 
     @torch.no_grad()
     def select_action(self, state, deterministic):
@@ -144,14 +146,13 @@ class DQN_Agent:
                 a = np.random.randint(0, self.action_dim)
             else:
                 a = self.q_net(state).argmax().item()
-
         return a
 
-    def exploration_decay(self):
-        if self.exploration_ratio <= 0.05:
-            self.exploration_ratio = 0.05
+    def exploration_decay(self, min_ratio: float=0.05, decay_ratio: float=0.99):
+        if self.exploration_ratio <= min_ratio:
+            self.exploration_ratio = min_ratio
         else:
-            self.exploration_ratio *= 0.99
+            self.exploration_ratio *= decay_ratio
 
     def _dqn_loss(self, s, a, r, s_prime, dw):
         '''Compute the target Q value'''
@@ -168,10 +169,10 @@ class DQN_Agent:
         q_loss = F.mse_loss(current_q_a, target_Q)
         return q_loss
     
-    def _train_origin(self, s, a, r, s_prime, dw):
-        '''The traditional Deep Q-Learning'''
+    def _train_standard(self, s, a, r, s_prime, dw):
+        '''The standard Deep Q-Learning'''
         # update the target network every fixed steps
-        if self.training_step % 8 == 0:
+        if self.training_step % self.eval_step == 0:
             # Assign the parameters of eval_net to target_net
             self.target_net.load_state_dict(self.q_net.state_dict())
 
@@ -190,14 +191,14 @@ class DQN_Agent:
             torch.tensor(dw, dtype=torch.int64).to(self.device)
         )
 
-    def train_origin(self, replay_buffer: ReplayBuffer):
+    def train_standard(self, replay_buffer: ReplayBuffer):
         s, a, r, s_prime, dw = \
             self._transition_to_device(*replay_buffer.sample(self.batch_size))
-        self._train_origin(s, a, r, s_prime, dw)
+        self._train_standard(s, a, r, s_prime, dw)
 
     def train_minimax_group_by_step(self, replay_buffer: GroupedReplayBuffer):
         # update the target network every fixed steps
-        if self.training_step % 8 == 0:
+        if self.training_step % self.eval_step == 0:
             # Assign the parameters of eval_net to target_net
             self.target_net.load_state_dict(self.q_net.state_dict())
 
@@ -206,10 +207,10 @@ class DQN_Agent:
             print('Wait for enough replays')
             return
         elif n == 1:
-            # warmup, using traditional trainning method
+            # warmup, using standard trainning method
             s, a, r, s_prime, dw = \
                 self._transition_to_device(states[0], actions[0], rewards[0], next_states[0], dws[0])
-            self._train_origin(s, a, r, s_prime, dw)
+            self._train_standard(s, a, r, s_prime, dw)
         else:
             # train with minimax deep Q-learning
             grouped_grads = []
@@ -240,7 +241,7 @@ class DQN_Agent:
 
     def train_minimax_group_by_sampling(self, replay_buffer: ReplayBuffer, n: int):
         # update the target network every fixed steps
-        if self.training_step % 8 == 0:
+        if self.training_step % self.eval_step == 0:
             # Assign the parameters of eval_net to target_net
             self.target_net.load_state_dict(self.q_net.state_dict())
 
@@ -270,9 +271,9 @@ class DQN_Agent:
         self.optimizer.step()
         self.training_step += 1
 
-    def train(self, replay_buffer: Union[GroupedReplayBuffer, ReplayBuffer], method: str='origin'):
-        if method == 'origin':
-            self.train_origin(replay_buffer)
+    def train(self, replay_buffer: Union[GroupedReplayBuffer, ReplayBuffer], method: str='standard'):
+        if method == 'standard':
+            self.train_standard(replay_buffer)
         elif 'group-by-step' in method:
             self.train_minimax_group_by_step(replay_buffer)
         else:
@@ -318,6 +319,7 @@ def grad_by_minimax(grouped_grads: torch.Tensor, grouped_loss: torch.Tensor):
     A = matrix(np.ones([1, n]))
     b = matrix(np.ones([1]))
 
+    solvers.options['show_progress'] = False
     res = qp(P, q, G, h, A, b)
     d = np.array(D).T.dot(np.array(res['x']))[:, 0]
 

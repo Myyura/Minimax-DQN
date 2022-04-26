@@ -33,12 +33,12 @@ def train(
     train_step: int,
     eval_step: int,
     replay_buffer_size: int,
-    method: str='origin',
+    method: str='standard',
     minimax_until: Union[float, None] = None):
     state_dim = train_env.observation_space.shape[0]
     action_dim = train_env.action_space.n
 
-    if method == 'origin':
+    if method == 'standard':
         replay_buffer = ReplayBuffer(state_dim=state_dim, max_size=replay_buffer_size)
     elif 'group-by-step' in method:
         n_buffer = int(method.split('-')[0])
@@ -50,7 +50,7 @@ def train(
         n_sample = int(method.split('-')[0])
         replay_buffer = ReplayBuffer(state_dim=state_dim, max_size=replay_buffer_size)
 
-        use_origin = False
+        use_standard = False
 
     scores = {}
     total_step = 0
@@ -69,6 +69,9 @@ def train(
                 a = train_env.action_space.sample()
 
             s_prime, r, done, info = train_env.step(a)
+            # change the reward function of MountainCar-v0
+            if train_env.spec.id == 'MountainCar-v0':
+                r = 20 if s_prime[0] >= 0.5 else abs(s_prime[0] - s[0])
 
             '''Avoid impacts caused by reaching max episode steps'''
             dw = 1 if done else 0
@@ -80,19 +83,19 @@ def train(
 
             '''Train'''
             if total_step > warmup_step and total_step % train_step == 0:
-                if method == 'origin':
-                    agent.train_origin(replay_buffer)
+                if method == 'standard':
+                    agent.train_standard(replay_buffer)
                 elif 'group-by-step' in method:
                     pass
                 elif 'group-by-sampling' in method:
                     if minimax_until is not None \
                         and last3_score is not None \
-                        and not use_origin \
+                        and not use_standard \
                         and np.average(last3_score) >= minimax_until:
-                        use_origin = True
+                        use_standard = True
 
-                    if use_origin:
-                        agent.train_origin(replay_buffer)
+                    if use_standard:
+                        agent.train_standard(replay_buffer)
                     else:
                         agent.train_minimax_group_by_sampling(replay_buffer, n_sample)
 

@@ -1,24 +1,38 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class SimpleQNet(nn.Module):
     def __init__(self, state_dim: int, action_dim: int):
         super(SimpleQNet, self).__init__()
-        self.fc1 = nn.Linear(state_dim, 64, bias=False)
-        self.act1 = nn.Sigmoid()
-        self.fc2 = nn.Linear(64, 32, bias=False)
-        self.act2 = nn.Sigmoid()
-        self.out = nn.Linear(32, action_dim, bias=False)
+        self.fc1 = nn.Linear(state_dim, 128)
+        self.fc2 = nn.Linear(128, 64)
+        self.fc3 = nn.Linear(64, action_dim)
 
     def forward(self, x):
-        y = self.fc1(x)
-        y = self.act1(y)
-        y = self.fc2(y)
-        y = self.act2(y)
-        y = self.out(y)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        y = self.fc3(x)
         return y
+
+# class SimpleQNet(nn.Module):
+#     def __init__(self, state_dim: int, action_dim: int):
+#         super(SimpleQNet, self).__init__()
+#         self.fc1 = nn.Linear(state_dim, 64, bias=False)
+#         self.act1 = nn.Sigmoid()
+#         self.fc2 = nn.Linear(64, 32, bias=False)
+#         self.act2 = nn.Sigmoid()
+#         self.out = nn.Linear(32, action_dim, bias=False)
+
+#     def forward(self, x):
+#         y = self.fc1(x)
+#         y = self.act1(y)
+#         y = self.fc2(y)
+#         y = self.act2(y)
+#         y = self.out(y)
+#         return y
 
 class SimpleConvQNet(nn.Module):
     def __init__(self, input_shape, num_actions):
