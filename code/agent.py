@@ -255,8 +255,8 @@ class DQN_Agent:
             q_loss.backward()
             grads = grads_to_vector(self.q_net.parameters())
 
-            grouped_grads.append(grads.detach().numpy())
-            grouped_loss.append(q_loss.detach().numpy())
+            grouped_grads.append(grads.cpu().detach().numpy())
+            grouped_loss.append(q_loss.cpu().detach().numpy())
         
         grouped_loss = np.array(grouped_loss)
         grads = grad_by_minimax(
@@ -299,7 +299,7 @@ def grad_by_minimax(grouped_grads: torch.Tensor, grouped_loss: torch.Tensor):
 
     n, m = grouped_grads.shape
 
-    """
+    r"""
     minimze (1/2)xPx + qx          |         min (1/2)xDDx - fx
     subject to Gx <= h             |         subject to \sum_i^n x_i = 1
                Ax = b              |                    x_i >= 0

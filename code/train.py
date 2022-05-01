@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import gym
 
@@ -11,7 +12,6 @@ def evaluate(env: gym.Env, agent: DQN_Agent, turns: int=100):
         score = 0
         # eval_env.reset(seed=1234)
         s, done = env.reset(seed=10000+i), False
-        env.action_space.seed(10000+i)
         while not done:
             a = agent.select_action(s, deterministic=True)
             s_prime, r, done, info = env.step(a)
@@ -55,7 +55,8 @@ def train(
     scores = {}
     total_step = 0
     total_episode = 0
-    last3_score = deque([0, 0, 0], maxlen=3)
+    max_score = -999999
+    # last3_score = deque([0, 0, 0], maxlen=3)
     while total_step < max_step:
         s, done, ep_r, ep_step = train_env.reset(), False, 0, 0
 
@@ -69,9 +70,6 @@ def train(
                 a = train_env.action_space.sample()
 
             s_prime, r, done, info = train_env.step(a)
-            # change the reward function of MountainCar-v0
-            if train_env.spec.id == 'MountainCar-v0':
-                r = 20 if s_prime[0] >= 0.5 else abs(s_prime[0] - s[0])
 
             '''Avoid impacts caused by reaching max episode steps'''
             dw = 1 if done else 0
@@ -88,11 +86,11 @@ def train(
                 elif 'group-by-step' in method:
                     pass
                 elif 'group-by-sampling' in method:
-                    if minimax_until is not None \
-                        and last3_score is not None \
-                        and not use_standard \
-                        and np.average(last3_score) >= minimax_until:
-                        use_standard = True
+                    # if minimax_until is not None \
+                    #     and last3_score is not None \
+                    #     and not use_standard \
+                    #     and np.average(last3_score) >= minimax_until:
+                    #     use_standard = True
 
                     if use_standard:
                         agent.train_standard(replay_buffer)
@@ -105,8 +103,15 @@ def train(
             '''Evaluate'''
             if total_step % eval_step == 0:
                 scores[total_step] = evaluate(eval_env, agent)
-                if last3_score is not None:
-                    last3_score.append(np.average(scores[total_step]))
+                # save the best model
+                ave_score = np.average(scores[total_step])
+                if ave_score > max_score:
+                    model_path = os.path.join('..', 'model', str(train_env.spec.id) + '_' + method + '_best.pth')
+                    agent.save(model_path)
+                    max_score = ave_score
+
+                # if last3_score is not None:
+                #     last3_score.append(np.average(scores[total_step]))
         total_episode += 1
 
         '''Log'''
