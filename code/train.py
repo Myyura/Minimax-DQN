@@ -3,7 +3,7 @@ import numpy as np
 import gym
 
 from typing import Union
-from agent import DQN_Agent, GroupedReplayBuffer, ReplayBuffer
+from agent import DQN_Agent, ReplayBuffer
 
 def evaluate(env: gym.Env, agent: DQN_Agent, turns: int=100):
     scores = []
@@ -38,12 +38,6 @@ def train(
 
     if method == 'standard':
         replay_buffer = ReplayBuffer(state_dim=state_dim, max_size=replay_buffer_size)
-    elif 'group-by-step' in method:
-        n_buffer = int(method.split('-')[0])
-        replay_buffer = GroupedReplayBuffer(
-                            state_dim=state_dim, 
-                            max_size_per_buffer=replay_buffer_size//n_buffer, 
-                            n=n_buffer)
     elif 'group-by-sampling' in method:
         n_sample = int(method.split('-')[0])
         replay_buffer = ReplayBuffer(state_dim=state_dim, max_size=replay_buffer_size)
