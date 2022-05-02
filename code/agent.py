@@ -260,49 +260,6 @@ class DQN_Agent:
             self._transition_to_device(*replay_buffer.sample(self.batch_size))
         self._train_standard(s, a, r, s_prime, dw)
 
-    def train_minimax_group_by_step(self, replay_buffer: GroupedReplayBuffer):
-        # update the target network every fixed steps
-        if self.training_step % self.eval_step == 0:
-            # Assign the parameters of eval_net to target_net
-            self.target_net.load_state_dict(self.q_net.state_dict())
-
-        states, actions, rewards, next_states, dws, n = replay_buffer.sample(self.batch_size)
-        if n < 1:
-            print('Wait for enough replays')
-            return
-        elif n == 1:
-            # warmup, using standard trainning method
-            s, a, r, s_prime, dw = \
-                self._transition_to_device(states[0], actions[0], rewards[0], next_states[0], dws[0])
-            self._train_standard(s, a, r, s_prime, dw)
-        else:
-            # train with minimax deep Q-learning
-            grouped_grads = []
-            grouped_loss = []
-            for i in range(n):
-                s, a, r, s_prime, dw = \
-                    self._transition_to_device(states[i], actions[i], rewards[i], next_states[i], dws[i])
-                '''Compute the target Q value'''
-                q_loss = self._dqn_loss(s, a, r, s_prime, dw)
-                self.optimizer.zero_grad()
-                q_loss.backward()
-                grads = grads_to_vector(self.q_net.parameters())
-
-                grouped_grads.append(grads.detach().numpy())
-                grouped_loss.append(q_loss.detach().numpy())
-
-            grads = grad_by_minimax(
-                        torch.tensor(grouped_grads, dtype=torch.float), 
-                        torch.tensor(grouped_loss, dtype=torch.float)
-                    )
-            vector_to_grads(
-                torch.tensor(grads, dtype=torch.float).to(self.device), 
-                self.q_net.parameters()
-            )
-
-            self.optimizer.step()
-            self.training_step += 1
-
     def train_minimax_group_by_sampling(self, replay_buffer: ReplayBuffer, n: int):
         # update the target network every fixed steps
         if self.training_step % self.eval_step == 0:
@@ -335,7 +292,7 @@ class DQN_Agent:
         self.optimizer.step()
         self.training_step += 1
 
-    def train(self, replay_buffer: Union[GroupedReplayBuffer, ReplayBuffer], method: str='standard'):
+    def train(self, replay_buffer: ReplayBuffer, method: str='standard'):
         if method == 'standard':
             self.train_standard(replay_buffer)
         elif 'group-by-step' in method:
