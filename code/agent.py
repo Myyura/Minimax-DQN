@@ -56,58 +56,122 @@ class ReplayBuffer:
         self.size = 0
 
 
-class GroupedReplayBuffer:
-    def __init__(
-        self,
-        state_dim: int,
-        max_size_per_buffer: int,
-        n: int) -> None:
-        
-        self.replay_buffers = [ReplayBuffer(state_dim, max_size_per_buffer) for _ in range(n)]
-        self.n_buffer = n
-
-        self.front = 0
-        # self.back = -n
-
+class PrioritizedReplayBuffer:
+    '''Proportional Prioritization [ref. labmlai]
+    '''
+    def __init__(self, state_dim: int, max_size: int, alpha: float) -> None:
+        # We use a power of $2$ for capacity because it simplifies the code and debugging
+        self.max_size = max_size
+        self.ptr = 0
         self.size = 0
 
-        self.max_size_per_buffer = max_size_per_buffer
+        self.alpha = alpha
+
+        # Maintain segment binary trees to take sum and find minimum over a range
+        self.priority_sum = [0 for _ in range(2 * self.max_size)]
+        self.priority_min = [float('inf')  for _ in range(2 * self.capacity)]
+
+        # Current max priority, $p$, to be assigned to new transitions
+        self.max_priority = 1.
+        
+        # Buffer
+        self.state = np.zeros((max_size, state_dim))
+        self.action = np.zeros((max_size, 1))
+        self.reward = np.zeros((max_size, 1))
+        self.next_state = np.zeros((max_size, state_dim))
+        self.dw = np.zeros((max_size, 1))
 
     def add(self, state, action, reward, next_state, dw):
-        if self.replay_buffers[self.front].full():
-            self.front = (self.front + 1) % self.n_buffer
-            if self.replay_buffers[self.front].full():
-                self.replay_buffers[self.front].clear()
-        
-        self.replay_buffers[self.front].add(state, action, reward, next_state, dw)
-        self.size = sum([buffer.size() for buffer in self.replay_buffers])
+        idx = self.ptr
 
-    @torch.no_grad()
-    def sample(self, batch_size, warmup_size: Union[int, None]=None):
-        if warmup_size is None:
-            warmup_size = 2 * batch_size
-        elif warmup_size < batch_size:
-            raise ValueError('The argument "warmup_size" must be equal or greater than "batch_size"')
+        self.state[self.ptr] = state
+        self.action[self.ptr] = action
+        self.reward[self.ptr] = reward
+        self.next_state[self.ptr] = next_state
+        self.dw[self.ptr] = dw  # 0,0,0，...，1
 
-        states = []
-        actions = []
-        rewards = []
-        next_states = []
-        dws = []
-        for replay_buffer in self.replay_buffers:
-            if replay_buffer.ready_to_sample(warmup_size):
-                s, a, r, s_prime, dw = replay_buffer.sample(self.batch_size)
-                states.append(s)
-                actions.append(a)
-                rewards.append(r)
-                next_states.append(s_prime)
-                dws.append(dw)
-        
-        return (states, actions, rewards, next_states, dws, len(states))
+        self.ptr = (self.ptr + 1) % self.max_size
+        self.size = min(self.size + 1, self.max_size)
 
-    def ready_to_sample(self, warmup_size: int):
-        return self.size > warmup_size
+        # $p_i^\alpha$, new samples get `max_priority`
+        priority_alpha = self.max_priority ** self.alpha
 
+        # Update the two segment trees for sum and minimum
+        self._set_priority_min(idx, priority_alpha)
+        self._set_priority_sum(idx, priority_alpha)
+
+    def _set_priority_min(self, idx, priority_alpha):
+        """
+        #### Set priority in binary segment tree for minimum
+        """
+
+        # Leaf of the binary tree
+        idx += self.max_size
+        self.priority_min[idx] = priority_alpha
+
+        # Update tree, by traversing along ancestors.
+        # Continue until the root of the tree.
+        while idx >= 2:
+            # Get the index of the parent node
+            idx //= 2
+            # Value of the parent node is the minimum of it's two children
+            self.priority_min[idx] = min(self.priority_min[2 * idx], self.priority_min[2 * idx + 1])
+
+    def _set_priority_sum(self, idx, priority):
+        """
+        #### Set priority in binary segment tree for sum
+        """
+
+        # Leaf of the binary tree
+        idx += self.max_size
+        # Set the priority at the leaf
+        self.priority_sum[idx] = priority
+
+        # Update tree, by traversing along ancestors.
+        # Continue until the root of the tree.
+        while idx >= 2:
+            # Get the index of the parent node
+            idx //= 2
+            # Value of the parent node is the sum of it's two children
+            self.priority_sum[idx] = self.priority_sum[2 * idx] + self.priority_sum[2 * idx + 1]
+
+    def _sum(self):
+        """
+        #### $\sum_k p_k^\alpha$
+        """
+
+        # The root node keeps the sum of all values
+        return self.priority_sum[1]
+
+    def _min(self):
+        """
+        #### $\min_k p_k^\alpha$
+        """
+
+        # The root node keeps the minimum of all values
+        return self.priority_min[1]
+
+    def find_prefix_sum_idx(self, prefix_sum):
+        """
+        #### Find largest $i$ such that $\sum_{k=1}^{i} p_k^\alpha  \le P$
+        """
+
+        # Start from the root
+        idx = 1
+        while idx < self.capacity:
+            # If the sum of the left branch is higher than required sum
+            if self.priority_sum[idx * 2] > prefix_sum:
+                # Go to left branch of the tree
+                idx = 2 * idx
+            else:
+                # Otherwise go to right branch and reduce the sum of left
+                #  branch from required sum
+                prefix_sum -= self.priority_sum[idx * 2]
+                idx = 2 * idx + 1
+
+        # We are at the leaf node. Subtract the capacity by the index in the tree
+        # to get the index of actual value
+        return idx - self.capacity
 
 class DQN_Agent:
     def __init__(
