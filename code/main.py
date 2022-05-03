@@ -30,6 +30,63 @@ def save_result(scores, filename: str, title: str):
     ax.set_title(title)
     plt.savefig(os.path.join('..', 'result', filename + '.png'))
 
+def train_cartpole_proportional_per(random_seed: int=42):
+    '''Parameters'''
+    max_step = 100000
+    replay_buffer_size = 2**13
+    lr = 5e-4
+    batch_size = 128
+
+    '''Proportional-PER'''
+    # reset random seeds
+    random.seed(random_seed)
+    np.random.seed(random_seed)
+    torch.manual_seed(random_seed)
+    cvxopt.setseed(random_seed)
+
+    train_env = gym.make('CartPole-v1')
+    eval_env = gym.make('CartPole-v1')
+    train_env.reset(seed=random_seed)
+    train_env.action_space.seed(random_seed)
+
+    state_dim = train_env.observation_space.shape[0]
+    action_dim = train_env.action_space.n
+    agent = DQN_Agent(state_dim, action_dim, 
+                      batch_size=batch_size, lr=lr, exploration_ratio=1.)
+    scores = train(
+        agent, train_env, eval_env,
+        max_step=max_step, warmup_step=batch_size*2, train_step=4, eval_step=32,
+            replay_buffer_size=replay_buffer_size, method='proportional-per')
+
+    result_filename = 'cartpole_' + 'proportional_per_' + str(random_seed) + '_' + str(max_step) + '_' + str(replay_buffer_size)
+    save_result(scores, result_filename, 'CartPole-v1, Proportional-PER-DQN')
+
+    '''Standard'''
+    # reset random seeds
+    random.seed(random_seed)
+    np.random.seed(random_seed)
+    torch.manual_seed(random_seed)
+    cvxopt.setseed(random_seed)
+
+    train_env = gym.make('CartPole-v1')
+    eval_env = gym.make('CartPole-v1')
+    train_env.reset(seed=random_seed)
+    train_env.action_space.seed(random_seed)
+
+    state_dim = train_env.observation_space.shape[0]
+    action_dim = train_env.action_space.n
+    agent = DQN_Agent(state_dim, action_dim, 
+                      batch_size=batch_size, lr=lr, exploration_ratio=1.)
+    
+    scores = train(
+        agent, train_env, eval_env,
+        max_step=max_step, warmup_step=batch_size*2, train_step=4, eval_step=32,
+            replay_buffer_size=replay_buffer_size, method='standard')
+
+    result_filename = 'cartpole_' + 'standard_' + str(random_seed) + '_' + str(max_step) + '_' + str(replay_buffer_size)
+    save_result(scores, result_filename, 'CartPole-v1, Standard-DQN')
+    
+    
 def train_cartpole(random_seed: int=42):
     '''Parameters'''
     max_step = 100000
@@ -197,6 +254,7 @@ def train_mountaincar(random_seed: int=42):
     save_result(scores, result_filename, 'MountainCar-v0, Minimax-DQN')
 
 if __name__ == '__main__':
+    train_cartpole_proportional_per(42)
     train_cartpole(42)
     # train_lunarlander(42)
     # train_mountaincar(42)

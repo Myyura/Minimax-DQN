@@ -3,7 +3,8 @@ import numpy as np
 import gym
 
 from typing import Union
-from agent import DQN_Agent, ReplayBuffer
+from agent import DQN_Agent
+from replay_buffer import ReplayBuffer, ProportionalPrioritizedReplayBuffer
 
 def evaluate(env: gym.Env, agent: DQN_Agent, turns: int=100):
     scores = []
@@ -31,18 +32,27 @@ def train(
     train_step: int,
     eval_step: int,
     replay_buffer_size: int,
-    method: str='standard',
-    minimax_until: Union[float, None] = None):
+    method: str='standard'):
     state_dim = train_env.observation_space.shape[0]
     action_dim = train_env.action_space.n
 
+    replay_buffers = []
     if method == 'standard':
         replay_buffer = ReplayBuffer(state_dim=state_dim, max_size=replay_buffer_size)
+        replay_buffers.append(replay_buffer)
     elif 'group-by-sampling' in method:
         n_sample = int(method.split('-')[0])
         replay_buffer = ReplayBuffer(state_dim=state_dim, max_size=replay_buffer_size)
-
-        use_standard = False
+        replay_buffers.append(replay_buffer)
+    elif 'proportional-per' in method:
+        replay_buffer = ProportionalPrioritizedReplayBuffer(
+            state_dim=state_dim, max_size=replay_buffer_size, alpha=0.6)
+        beta_proportional = 0.4 # parameter setting following the original paper of PER
+        replay_buffers.append(replay_buffer)
+    elif 'rank-based-per' in method:
+        pass
+    elif 'group-by-per' in method:
+        pass
 
     scores = {}
     total_step = 0
@@ -65,7 +75,8 @@ def train(
             '''Avoid impacts caused by reaching max episode steps'''
             dw = 1 if done else 0
 
-            replay_buffer.add(s, a, r, s_prime, dw)
+            for replay_buffer in replay_buffers:
+                replay_buffer.add(s, a, r, s_prime, dw)
             
             s = s_prime
             ep_r += r
@@ -73,14 +84,11 @@ def train(
             '''Train'''
             if total_step > warmup_step and total_step % train_step == 0:
                 if method == 'standard':
-                    agent.train_standard(replay_buffer)
-                elif 'group-by-step' in method:
-                    pass
+                    agent.train_standard(replay_buffers[0])
                 elif 'group-by-sampling' in method:
-                    if use_standard:
-                        agent.train_standard(replay_buffer)
-                    else:
-                        agent.train_minimax_group_by_sampling(replay_buffer, n_sample)
+                    agent.train_minimax_group_by_sampling(replay_buffers[0], n_sample)
+                elif 'proportional-per' in method:
+                    agent.train_with_proportional_per(replay_buffers[0], beta_proportional)
 
                 # exploration decay
                 agent.exploration_decay()
@@ -92,7 +100,7 @@ def train(
                 ave_score = np.average(scores[total_step])
                 if ave_score > max_score:
                     model_path = os.path.join('..', 'model', str(train_env.spec.id) + '_' + method + '_best.pth')
-                    agent.save(model_path)
+                    # agent.save(model_path)
                     max_score = ave_score
 
         total_episode += 1
