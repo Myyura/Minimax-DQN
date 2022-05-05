@@ -109,15 +109,14 @@ def train_cartpole(random_seed: int=42):
     state_dim = train_env.observation_space.shape[0]
     action_dim = train_env.action_space.n
     agent = DQN_Agent(state_dim, action_dim, 
-                      batch_size=batch_size, lr=lr, exploration_ratio=1.,
-                      device='cuda:0')
+                      batch_size=batch_size, lr=lr, exploration_ratio=1.)
     
     scores = train(
         agent, train_env, eval_env,
         max_step=max_step, warmup_step=batch_size*2, train_step=4, eval_step=32,
             replay_buffer_size=replay_buffer_size, method='standard')
 
-    result_filename = 'cuda_cartpole_' + 'standard_' + str(random_seed) + '_' + str(max_step)
+    result_filename = 'correct_cartpole_' + 'standard_' + str(random_seed) + '_' + str(max_step)
     save_result(scores, result_filename, 'CartPole-v1, Standard-DQN')
 
     '''Minimax'''
@@ -135,18 +134,17 @@ def train_cartpole(random_seed: int=42):
     state_dim = train_env.observation_space.shape[0]
     action_dim = train_env.action_space.n
     agent = DQN_Agent(state_dim, action_dim, 
-                      batch_size=batch_size, lr=lr, exploration_ratio=1.,
-                      device='cuda:0')
+                      batch_size=batch_size, lr=lr, exploration_ratio=1.)
     scores = train(
         agent, train_env, eval_env,
         max_step=max_step, warmup_step=batch_size*2, train_step=4, eval_step=32,
             replay_buffer_size=replay_buffer_size, method='5-group-by-sampling')
 
-    result_filename = 'cuda_cartpole_' + 'minimax_' + str(random_seed) + '_' + str(max_step)
+    result_filename = 'correct_cartpole_' + 'minimax_' + str(random_seed) + '_' + str(max_step)
     save_result(scores, result_filename, 'CartPole-v1, Minimax-DQN')
 
 def train_lunarlander(random_seed: int=42):
-    max_step = 700000
+    max_step = 7000
     replay_buffer_size = max_step // 10
     lr = 5e-4
     batch_size = 128
@@ -226,7 +224,7 @@ def train_mountaincar(random_seed: int=42):
         max_step=max_step, warmup_step=batch_size*2, train_step=4, eval_step=32,
             replay_buffer_size=replay_buffer_size, method='standard')
 
-    result_filename = 'tt_mountaincar_' + 'standard_' + str(random_seed) + '_' + str(max_step)
+    result_filename = 'correct_mountaincar_' + 'standard_' + str(random_seed) + '_' + str(max_step)
     save_result(scores, result_filename, 'MountainCar-v0, Standard-DQN')
 
     '''Minimax'''
@@ -250,11 +248,11 @@ def train_mountaincar(random_seed: int=42):
         max_step=max_step, warmup_step=batch_size*2, train_step=4, eval_step=32,
             replay_buffer_size=replay_buffer_size, method='5-group-by-sampling')
 
-    result_filename = 'tt_mountaincar_' + 'minimax_' + str(random_seed) + '_' + str(max_step)
+    result_filename = 'correct_mountaincar_' + 'minimax_' + str(random_seed) + '_' + str(max_step)
     save_result(scores, result_filename, 'MountainCar-v0, Minimax-DQN')
 
 if __name__ == '__main__':
-    train_cartpole_proportional_per(42)
+    # train_cartpole_proportional_per(42)
     train_cartpole(42)
     # train_lunarlander(42)
     # train_mountaincar(42)

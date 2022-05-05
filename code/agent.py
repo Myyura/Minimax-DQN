@@ -65,7 +65,9 @@ class DQN_Agent:
     def _dqn_loss(self, s, a, r, s_prime, dw, weight=None):
         '''Compute the target Q value'''
         with torch.no_grad():
-            max_q_prime = self.target_net(s_prime).max(1)[0].unsqueeze(1)
+            next_a = self.q_net(s_prime).argmax(1)
+            max_q_prime = self.target_net(s_prime).gather(1, next_a.unsqueeze(-1))
+            # max_q_prime = self.target_net(s_prime).max(1)[0].unsqueeze(1)
             '''Avoid impacts caused by reaching max episode steps'''
             target_q = r + (1 - dw) * self.gamma * max_q_prime # dw: die and win
             # target_q = r + self.gamma * max_q_prime
