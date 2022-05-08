@@ -6,7 +6,7 @@ from typing import Union
 from agent import DQN_Agent
 from replay_buffer import ReplayBuffer, ProportionalPrioritizedReplayBuffer
 
-def evaluate(env: gym.Env, agent: DQN_Agent, turns: int=100):
+def evaluate(env: gym.Env, agent: DQN_Agent, turns: int=50):
     scores = []
     for i in range(turns):
         score = 0
@@ -95,17 +95,19 @@ def train(
 
             '''Evaluate'''
             if total_step % eval_step == 0:
-                scores[total_step] = evaluate(eval_env, agent)
+                scores[total_step] = evaluate(eval_env, agent, turns=50)
                 # save the best model
                 ave_score = np.average(scores[total_step])
                 if ave_score > max_score:
                     model_path = os.path.join('..', 'model', str(train_env.spec.id) + '_' + method + '_best.pth')
                     # agent.save(model_path)
                     max_score = ave_score
+                print('Steps: {}, Episode: {}, Eval Score: {}, Max Score: {}, Exploration Ratio: {}'.format(total_step, total_episode, ave_score, max_score, agent.exploration_ratio))
+                
 
         total_episode += 1
 
         '''Log'''
-        print('Steps: {}, Episode: {}, Score: {}, Exploration Ratio: {}'.format(total_step, total_episode, ep_r, agent.exploration_ratio))
+        # print('Steps: {}, Episode: {}, Score: {}, Exploration Ratio: {}'.format(total_step, total_episode, ep_r, agent.exploration_ratio))
 
     return scores

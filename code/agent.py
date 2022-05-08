@@ -6,7 +6,7 @@ from cvxopt import matrix, solvers
 solvers.options['show_progress'] = False
 from cvxopt.solvers import qp
 
-from q_net import SimpleQNet
+from q_net import *
 from replay_buffer import ReplayBuffer, ProportionalPrioritizedReplayBuffer
 from utils import vector_to_grads, grads_to_vector
 
@@ -20,12 +20,16 @@ class DQN_Agent:
         lr: float=5e-4,
         batch_size: int=128,
         exploration_ratio: float=0.5,
-        eval_step: int=32,
+        syn_step: int=32,
+        qnet: int=1,
         device: str='cpu') -> None:
 
-        self.q_net = SimpleQNet(state_dim, action_dim).to(device)
-        # The only trick we use is target network
-        self.target_net = SimpleQNet(state_dim, action_dim).to(device)
+        if qnet == 2:
+            self.q_net = QNet64(state_dim, action_dim).to(device)
+            self.target_net = QNet64(state_dim, action_dim).to(device)
+        elif qnet == 1:
+            self.q_net = QNet128(state_dim, action_dim).to(device)
+            self.target_net = QNet128(state_dim, action_dim).to(device)
         self.target_net.load_state_dict(self.q_net.state_dict())
         self.target_net.eval()
         self.optimizer = torch.optim.Adam(self.q_net.parameters(), lr=lr)
@@ -36,7 +40,7 @@ class DQN_Agent:
         self.action_dim = action_dim
         self.device = device
         self.training_step = 0
-        self.eval_step = eval_step
+        self.syn_step = syn_step
 
     @torch.no_grad()
     def select_action(self, state, deterministic):
@@ -58,7 +62,7 @@ class DQN_Agent:
 
     def _update_target_network(self):
         # update the target network every fixed steps
-        if self.training_step % self.eval_step == 0:
+        if self.training_step % self.syn_step == 0:
             # Assign the parameters of eval_net to target_net
             self.target_net.load_state_dict(self.q_net.state_dict())
 
@@ -156,6 +160,9 @@ class DQN_Agent:
         q_loss.backward()
         self.optimizer.step()
         self.training_step += 1
+
+    def train_minimax_proportional_per(self, replay_buffer: ProportionalPrioritizedReplayBuffer, beta: float):
+        pass
 
     def save(self, model_path: str):
         torch.save(self.q_net.state_dict(), model_path)
