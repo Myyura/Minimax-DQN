@@ -7,6 +7,9 @@ from agent import DQN_Agent
 from replay_buffer import ReplayBuffer, ProportionalPrioritizedReplayBuffer
 
 def evaluate(env: gym.Env, agent: DQN_Agent, turns: int=50):
+    # eval mode
+    agent.eval_mode()
+
     scores = []
     for i in range(turns):
         score = 0
@@ -20,6 +23,8 @@ def evaluate(env: gym.Env, agent: DQN_Agent, turns: int=50):
         
         scores.append(score)
 
+    # back to training mode
+    agent.train_mode()
     return scores
 
 
@@ -100,7 +105,7 @@ def train(
                 ave_score = np.average(scores[total_step])
                 if ave_score > max_score:
                     model_path = os.path.join('..', 'model', str(train_env.spec.id) + '_' + method + '_best.pth')
-                    # agent.save(model_path)
+                    agent.save(model_path)
                     max_score = ave_score
                 print('Steps: {}, Episode: {}, Eval Score: {}, Max Score: {}, Exploration Ratio: {}'.format(total_step, total_episode, ave_score, max_score, agent.exploration_ratio))
                 

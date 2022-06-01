@@ -42,6 +42,12 @@ class DQN_Agent:
         self.training_step = 0
         self.syn_step = syn_step
 
+    def train_mode(self):
+        self.q_net.train()
+
+    def eval_mode(self):
+        self.q_net.eval()
+
     @torch.no_grad()
     def select_action(self, state, deterministic):
         state = torch.tensor(state.reshape(1, -1), dtype=torch.float).to(self.device)

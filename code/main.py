@@ -143,7 +143,7 @@ def train_cartpole(random_seed: int=42):
         max_step=max_step, warmup_step=batch_size*2, train_step=4, eval_step=32,
             replay_buffer_size=replay_buffer_size, method='standard')
 
-    result_filename = str(qnet) + '_correct_cartpole_standard_' + str(random_seed) + '_' + str(max_step) + '_' + str(replay_buffer_size)
+    result_filename = str(qnet) + 'ttt_correct_cartpole_standard_' + str(random_seed) + '_' + str(max_step) + '_' + str(replay_buffer_size)
     save_result(scores, result_filename, 'CartPole-v1, Standard-DQN')
 
     '''Minimax'''
@@ -168,7 +168,7 @@ def train_cartpole(random_seed: int=42):
         max_step=max_step, warmup_step=batch_size*2, train_step=4, eval_step=32,
             replay_buffer_size=replay_buffer_size, method='5-group-by-sampling')
 
-    result_filename = str(qnet) + '_correct_cartpole_minimax_' + str(random_seed) + '_' + str(max_step) + '_' + str(replay_buffer_size)
+    result_filename = str(qnet) + 'ttt_correct_cartpole_minimax_' + str(random_seed) + '_' + str(max_step) + '_' + str(replay_buffer_size)
     save_result(scores, result_filename, 'CartPole-v1, Minimax-DQN')
 
 def train_lunarlander_standard(random_seed: int=42):
@@ -198,7 +198,7 @@ def train_lunarlander_standard(random_seed: int=42):
                       qnet=qnet)
     scores = train(
         agent, train_env, eval_env,
-        max_step=max_step, warmup_step=batch_size*2, train_step=4, eval_step=64,
+        max_step=max_step, warmup_step=batch_size*2, train_step=4, eval_step=32,
             replay_buffer_size=replay_buffer_size, method='standard')
 
     result_filename = '1_correct_lunarlander50_standard_' + str(random_seed) + '_' + str(max_step) + '_' + str(replay_buffer_size)
@@ -231,7 +231,7 @@ def train_lunarlander_minimax(random_seed: int=42):
                       qnet=qnet)
     scores = train(
         agent, train_env, eval_env,
-        max_step=max_step, warmup_step=batch_size*2, train_step=4, eval_step=64,
+        max_step=max_step, warmup_step=batch_size*2, train_step=4, eval_step=32,
             replay_buffer_size=replay_buffer_size, method='5-group-by-sampling')
 
     result_filename = '1_correct_lunarlander50_minimax_' + str(random_seed) + '_' + str(max_step) + '_' + str(replay_buffer_size)
@@ -357,8 +357,8 @@ def train_acrobot(random_seed: int=42):
 
 if __name__ == '__main__':
     # train_cartpole_proportional_per(42)
-    # train_cartpole(42)
+    train_cartpole(42)
     # train_lunarlander_standard(42)
     # train_lunarlander_minimax(42)
     # train_mountaincar(42)
-    train_acrobot(42)
+    # train_acrobot(42)
