@@ -5,13 +5,14 @@ class ReplayBuffer:
     def __init__(
         self,
         state_dim: int,
+        action_dim: int,
         max_size: int) -> None:
         self.max_size = max_size
         self.ptr = 0
         self.size = 0
 
         self.state = np.zeros((max_size, state_dim))
-        self.action = np.zeros((max_size, 1))
+        self.action = np.zeros((max_size, action_dim))
         self.reward = np.zeros((max_size, 1))
         self.next_state = np.zeros((max_size, state_dim))
         self.dw = np.zeros((max_size, 1))

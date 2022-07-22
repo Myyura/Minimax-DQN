@@ -5,30 +5,11 @@ import torch
 import cvxopt
 
 import gym
-import matplotlib.pyplot as plt
-import json
 
-from agent import DQN_Agent
+from dqn_agent import DQN_Agent
+from ddpg_agent import DDPG_Agent
 from train import train
-
-def save_result(scores, filename: str, title: str):
-    result_json = os.path.join('..', 'result', filename + '.json')
-    with open(result_json, 'w') as f:
-        json.dump(scores, f)
-
-    fig, ax = plt.subplots(figsize=(16, 5))
-
-    x = list(scores.keys())
-    y = list(scores.values())
-    y_mean = [np.average(y[i]) for i in range(len(y))]
-    y_max = np.max(y, axis=1)
-    y_min = np.min(y, axis=1)
-
-    ax.plot(x, y_mean, 'o--', color='b', label = 'score')
-    plt.fill_between(x, y_min, y_max, color='b', alpha=0.2)
-    ax.legend(loc=2)
-    ax.set_title(title)
-    plt.savefig(os.path.join('..', 'result', filename + '.png'))
+from utils import save_result
 
 def train_cartpole_proportional_per(random_seed: int=42):
     '''Parameters'''

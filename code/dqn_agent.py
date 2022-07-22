@@ -1,35 +1,40 @@
 import numpy as np
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
-from typing import Union
-from cvxopt import matrix, solvers
-solvers.options['show_progress'] = False
-from cvxopt.solvers import qp
+from typing import Optional, Union
 
-from q_net import *
+from model import QNet64, QNet128
 from replay_buffer import ReplayBuffer, ProportionalPrioritizedReplayBuffer
-from utils import vector_to_grads, grads_to_vector
+from utils import vector_to_grads, grads_to_vector, grad_by_minimax
 
 
 class DQN_Agent:
+    '''Standard Double DQN Agent'''
     def __init__(
         self,
-        state_dim: int,
-        action_dim: int,
+        state_dim: Optional[int]=None,
+        action_dim: Optional[int]=None,
+        q_net: Union[str, nn.Module]='qnet64',
+        target_net: Optional[nn.Module]=None,
         gamma: float=0.99,
         lr: float=5e-4,
         batch_size: int=128,
         exploration_ratio: float=0.5,
         syn_step: int=32,
-        qnet: int=1,
         device: str='cpu') -> None:
 
-        if qnet == 2:
-            self.q_net = QNet64(state_dim, action_dim).to(device)
-            self.target_net = QNet64(state_dim, action_dim).to(device)
-        elif qnet == 1:
-            self.q_net = QNet128(state_dim, action_dim).to(device)
-            self.target_net = QNet128(state_dim, action_dim).to(device)
+        if isinstance(q_net, str):
+            if q_net == 'qnet64':
+                self.q_net = QNet64(state_dim, action_dim).to(device)
+                self.target_net = QNet64(state_dim, action_dim).to(device)
+            elif q_net == 'qnet128':
+                self.q_net = QNet128(state_dim, action_dim).to(device)
+                self.target_net = QNet128(state_dim, action_dim).to(device)
+        elif isinstance(q_net, nn.Module):
+            self.q_net = q_net.to(device)
+            self.target_net = target_net.to(device)
+        
         self.target_net.load_state_dict(self.q_net.state_dict())
         self.target_net.eval()
         self.optimizer = torch.optim.Adam(self.q_net.parameters(), lr=lr)
@@ -73,7 +78,7 @@ class DQN_Agent:
             self.target_net.load_state_dict(self.q_net.state_dict())
 
     def _dqn_loss(self, s, a, r, s_prime, dw, weight=None):
-        '''Compute the target Q value'''
+        # Compute the target Q value
         with torch.no_grad():
             next_a = self.q_net(s_prime).argmax(1)
             max_q_prime = self.target_net(s_prime).gather(1, next_a.unsqueeze(-1))
@@ -132,14 +137,15 @@ class DQN_Agent:
             q_loss.backward()
             grads = grads_to_vector(self.q_net.parameters())
 
-            grouped_grads.append(grads.cpu().detach().numpy())
-            grouped_loss.append(q_loss.cpu().detach().numpy())
-        
-        grouped_loss = np.array(grouped_loss)
-        grads = grad_by_minimax(
-                    torch.tensor(grouped_grads, dtype=torch.float), 
-                    torch.tensor(grouped_loss, dtype=torch.float)
-                )
+            grouped_grads.append(grads.cpu().detach())
+            grouped_loss.append(q_loss.cpu().detach())
+
+        grouped_loss = torch.stack(grouped_loss)
+        # q_loss = torch.mean(grouped_loss)
+        grouped_grads = torch.stack(grouped_grads)
+
+        grads = grad_by_minimax(grouped_grads, grouped_loss)
+
         vector_to_grads(
             torch.tensor(grads, dtype=torch.float).to(self.device), 
             self.q_net.parameters()
@@ -175,42 +181,3 @@ class DQN_Agent:
 
     def load(self, model_path: str):
         self.q_net.load_state_dict(torch.load(model_path))
-
-
-def grad_by_minimax(grouped_grads: torch.Tensor, grouped_loss: torch.Tensor):
-    r""" Calculate grads by minimax algorithm
-
-    Args: 
-        grouped_grads (Tensor[n, m]): grads vector of n groups
-        grouped_loss (Tensor[n, 1]): loss vector of n groups
-
-    Returns:
-
-    """
-
-    n, m = grouped_grads.shape
-
-    r"""
-    minimze (1/2)xPx + qx          |         min (1/2)xDDx - fx
-    subject to Gx <= h             |         subject to \sum_i^n x_i = 1
-               Ax = b              |                    x_i >= 0
-
-    D: grouped_grads, tensor of shape (n, m)
-    """
-
-    # D and h
-    D = matrix(grouped_grads.numpy().astype(np.float64))
-    f = matrix(grouped_loss.numpy().reshape(-1).astype(np.float64))
-
-    P = D * D.T
-    q = -f
-
-    G = matrix(-np.eye(n))
-    h = matrix(np.zeros(n))
-    A = matrix(np.ones([1, n]))
-    b = matrix(np.ones([1]))
-
-    res = qp(P, q, G, h, A, b)
-    d = np.array(D).T.dot(np.array(res['x']))[:, 0]
-
-    return d

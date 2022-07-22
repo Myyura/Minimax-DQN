@@ -3,7 +3,7 @@ import numpy as np
 import gym
 
 from typing import Union
-from agent import DQN_Agent
+from dqn_agent import DQN_Agent
 from replay_buffer import ReplayBuffer, ProportionalPrioritizedReplayBuffer
 
 def evaluate(env: gym.Env, agent: DQN_Agent, turns: int=50):
