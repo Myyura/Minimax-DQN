@@ -332,7 +332,7 @@ def train_mountaincar(random_seed: int=42):
     replay_buffer_size = max_step // 20
     lr = 5e-4
     batch_size = 128
-    qnet = 'qnet68'
+    qnet = 'qnet64'
     print(max_step, replay_buffer_size, lr, batch_size, qnet, 'Mountaincar-v2', random_seed)
 
     '''Standard'''
@@ -392,7 +392,7 @@ def train_acrobot(random_seed: int=42):
     replay_buffer_size = max_step // 20
     lr = 5e-4
     batch_size = 128
-    qnet = 'qnet68'
+    qnet = 'qnet64'
     print(max_step, replay_buffer_size, lr, batch_size, qnet, 'Acrobot-v2', random_seed)
     
     '''Standard'''
@@ -447,8 +447,8 @@ def train_acrobot(random_seed: int=42):
 
 if __name__ == '__main__':
     # train_cartpole_proportional_per(42)
-    train_cartpole(42)
+    # train_cartpole(42)
     # train_lunarlander_standard(42)
     # train_lunarlander_minimax(42)
     # train_mountaincar(42)
-    # train_acrobot(42)
+    train_acrobot(42)
