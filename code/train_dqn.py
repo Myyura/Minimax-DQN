@@ -9,7 +9,6 @@ from dqn_agent import DQN_Agent
 from ddpg_agent import DDPG_Agent
 from utils import save_result
 from replay_buffer import ReplayBuffer, ProportionalPrioritizedReplayBuffer
-from model import QNet128, QNet64
 
 def evaluate(env: gym.Env, agent: DQN_Agent, turns: int=50):
     # eval mode
@@ -291,7 +290,7 @@ def train_lunarlander_standard(random_seed: int=42):
         max_step=max_step, warmup_step=batch_size*2, train_step=4, eval_step=32,
             replay_buffer_size=replay_buffer_size, method='standard')
 
-    result_filename = '1_correct_lunarlander50_standard_' + str(random_seed) + '_' + str(max_step) + '_' + str(replay_buffer_size)
+    result_filename = qnet + '_correct_lunarlander50_standard_' + str(random_seed) + '_' + str(max_step) + '_' + str(replay_buffer_size)
     save_result(scores, result_filename, 'LunarLander-v2, Standard-DQN')
 
 def train_lunarlander_minimax(random_seed: int=42):
@@ -324,7 +323,7 @@ def train_lunarlander_minimax(random_seed: int=42):
         max_step=max_step, warmup_step=batch_size*2, train_step=4, eval_step=32,
             replay_buffer_size=replay_buffer_size, method='5-group-by-sampling')
 
-    result_filename = '1_correct_lunarlander50_minimax_' + str(random_seed) + '_' + str(max_step) + '_' + str(replay_buffer_size)
+    result_filename = qnet + '_correct_lunarlander50_minimax_' + str(random_seed) + '_' + str(max_step) + '_' + str(replay_buffer_size)
     save_result(scores, result_filename, 'LunarLander-v2, Minimax-DQN')
 
 def train_mountaincar(random_seed: int=42):
@@ -333,7 +332,7 @@ def train_mountaincar(random_seed: int=42):
     lr = 5e-4
     batch_size = 128
     qnet = 'qnet64'
-    print(max_step, replay_buffer_size, lr, batch_size, qnet, 'Mountaincar-v2', random_seed)
+    print(max_step, replay_buffer_size, lr, batch_size, qnet, 'Mountaincar-v0', random_seed)
 
     '''Standard'''
     # reset random seeds
@@ -357,7 +356,7 @@ def train_mountaincar(random_seed: int=42):
         max_step=max_step, warmup_step=batch_size*2, train_step=4, eval_step=32,
             replay_buffer_size=replay_buffer_size, method='standard')
 
-    result_filename = '2_correct_mountaincar_' + 'standard_' + str(random_seed) + '_' + str(max_step) + '_' + str(replay_buffer_size)
+    result_filename = qnet + '_correct_mountaincar_' + 'standard_' + str(random_seed) + '_' + str(max_step) + '_' + str(replay_buffer_size)
     print(result_filename)
     save_result(scores, result_filename, 'MountainCar-v0, Standard-DQN')
 
@@ -383,7 +382,7 @@ def train_mountaincar(random_seed: int=42):
         max_step=max_step, warmup_step=batch_size*2, train_step=4, eval_step=32,
             replay_buffer_size=replay_buffer_size, method='5-group-by-sampling')
 
-    result_filename = '2_correct_mountaincar_' + 'minimax_' + str(random_seed) + '_' + str(max_step) + '_' + str(replay_buffer_size)
+    result_filename = qnet + '_correct_mountaincar_' + 'minimax_' + str(random_seed) + '_' + str(max_step) + '_' + str(replay_buffer_size)
     print(result_filename)
     save_result(scores, result_filename, 'MountainCar-v0, Minimax-DQN')
 
@@ -447,7 +446,7 @@ def train_acrobot(random_seed: int=42):
 
 if __name__ == '__main__':
     # train_cartpole_proportional_per(42)
-    # train_cartpole(42)
+    train_cartpole(42)
     # train_lunarlander_standard(42)
     # train_lunarlander_minimax(42)
     # train_mountaincar(42)
